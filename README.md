@@ -1,5 +1,5 @@
 # EDF Processing and Topo Map Plotting
-TThis is a basic script designed to assist with the processing of EDF (European Data Format) files and the generation of topographic maps from power spectral density data. The script is specifically set up to work with TCRE (Tipolar Concentric Ring Electrodes) and eEEG (Emulated Electroencephalography) data, but it should also be functional for general purposes.
+This is a basic script designed to assist with the processing of EDF (European Data Format) files and the generation of topographic maps from power spectral density data. The script is specifically set up to work with TCRE (Tipolar Concentric Ring Electrodes) and eEEG (Emulated Electroencephalography) data, but it should also be functional for general purposes.
 
 The main processing is performed using the [MEG + EEG Analysis & Visualisation](https://mne.tools/stable/index.html) Python package, which provides powerful tools for EEG and MEG (Magnetoencephalography) data analysis.
 
