@@ -148,6 +148,81 @@ def combine_topo_plots(filenames, save_path=None, dpi=3000):
     plt.tight_layout()
     plt.savefig(save_path, bbox_inches='tight', dpi=dpi)
     plt.close()
+    
+    
+def plot_spect_from_edf(edf_paths, plt_savepath=None, duration=None, channel_prefix=None):
+    """
+    Plots spectrum density plots from EEG data stored in an EDF file.
+
+    Parameters:
+        edf_path (str): Path to the EDF file.
+        channel_prefix (str, optional): Prefix of the EEG channels to select. Default is None.
+        plt_savepath (str, optional): Directory path to save the generated plot. Default is None (CWD).
+        duration (float, optional): Duration of the data to plot in seconds. Default is None (plots the entire duration).
+
+    Returns:
+        None
+    """
+
+    fig, ax = plt.subplots()
+
+    for edf_path in edf_paths:
+        # Read the EDF file and load the data
+        raw = mne.io.read_raw_edf(
+            edf_path,
+            eog=['E1', 'E2'],
+            misc=['EMG', 'EMG2', 'SpO2', 'Pulse', 'Derived HR', 'ManPosition', 'ManLights', 'ECG'],
+            infer_types=True,
+            preload=True)
+
+        # Select EEG channels only
+        raw.pick(['eeg'])
+
+        # Crop the data if a specific duration is provided
+        if duration:
+            raw.crop(tmax=duration)
+
+        # Select EEG channels based on the provided prefix and rename them
+        if channel_prefix:
+            eeg_channels = [ch_name for ch_name in raw.ch_names if ch_name.startswith(channel_prefix)]
+            raw.pick_channels(eeg_channels)
+            raw.rename_channels(lambda x: x[1:])
+
+        # Rename specific channels
+        channel_rename_dict = {'FpZ': 'Fpz', 'CpZ': 'CPz'}
+        raw.rename_channels(channel_rename_dict)
+
+        # Set the montage to standard 10-20
+        montage = mne.channels.make_standard_montage('standard_1020')
+        raw.set_montage(montage)
+
+        # Compute power spectral density
+        spectrum = raw.compute_psd()
+
+        # Plot the spectrum
+        spectrum.plot(
+            dB=True,
+            average=True,
+            axes=ax,
+            show=False
+        )
+
+    # Generate save name based on channel prefix
+    plt_savename = edf_paths[0].split('/')[-1].split('.')[0]
+    plt_savename = edf_paths[0].split('\\')[-1].split('.')[0]
+    if channel_prefix == 'e':
+        savename = f"{plt_savename} (EEG)"
+    elif channel_prefix == 't':
+        savename = f"{plt_savename} (TCRE)"
+    else:
+        savename = plt_savename
+
+    # Save the figure and close it
+    fig.tight_layout()
+    if plt_savepath:
+        savename = os.path.join(plt_savepath, savename)
+    fig.savefig(savename, bbox_inches='tight', dpi=300)
+    plt.close(fig)
 
 
 def parse_cli_args():
@@ -166,8 +241,8 @@ def parse_cli_args():
                                 help='Path to the EDF file or folder\n'
                                 '')
     process_parser.add_argument('--output-path', metavar='<output_path>', default=None, help='Directory to save plots in')
-    process_parser.add_argument('--channel-prefix', metavar='<channel_prefix>', default=None, nargs='+', choices=['e', 't'], help='Channel prefix ("e", "t", or "e t" for both)')
-    process_parser.add_argument('--duration', metavar='<duration>', type=int, default=None, help='Duration')
+    process_parser.add_argument('--channel-prefix', metavar='<channel_prefix>', default=None, nargs='+', choices=['e', 't', 'e t'], help='Channel prefix ("e", "t", or "e t" for both)')
+    process_parser.add_argument('--duration', metavar='<duration>', type=int, default=None, help='Duration in seconds')
 
     # Combine topo maps sub-command
     combine_parser = subparsers.add_parser(
@@ -179,6 +254,20 @@ def parse_cli_args():
     combine_parser.add_argument('--figure-folder', metavar='<figure_folder>', required=True, help='Initial figure directory')
     combine_parser.add_argument('--output-path', metavar='<output_path>', default=None, help='Directory to save the combined plot(s)')
     combine_parser.add_argument('--pxs', metavar='<pxs>', default=None, nargs='+', help='Single or list of px IDs (e.g., <PX01> or <PX01 PX02 PX03>)')
+    
+    # Spectral plot EDFs sub-command
+    process_parser = subparsers.add_parser(
+        'spect_plot_edfs',
+        help='Process EDF files and plot spectral density maps\n'
+             'Run with "python process_plot_edf.py spect_plot_edfs --edf-path <EDF-PATH>"\n'
+             'Use command "python process_plot_edf.py spect_plot_edfs --help" for more information & options\n'
+    )
+    process_parser.add_argument('--edf-path', metavar='<edf_path>', required=True,
+                                help='Path to the EDF file or folder\n'
+                                '')
+    process_parser.add_argument('--output-path', metavar='<output_path>', default=None, help='Directory to save plots in')
+    process_parser.add_argument('--channel-prefix', metavar='<channel_prefix>', default=None, nargs='+', choices=['e', 't'], help='Channel prefix ("e", "t", or "e t" for both)')
+    process_parser.add_argument('--duration', metavar='<duration>', type=int, default=None, help='Duration in seconds')
 
     args = parser.parse_args()
 
@@ -213,5 +302,16 @@ if __name__ =='__main__':
             filenames = glob.glob(f'{args.figure_folder}/**.png')
             save_path = f"{args.output_path}/stacked_plot" if args.output_path else 'stacked_plot'
             combine_topo_plots(filenames, save_path)
+            
+    elif args.command == 'spect_plot_edfs':
+        if os.path.isfile(args.edf_path) and not args.edf_path.endswith('.edf'):
+            print("Only works with multiple EDFs (Names contining sleep stage)")
+        else:
+            files = glob.glob(f"{args.edf_path}/**/*.edf", recursive=True)
+            for channel_prefix in args.channel_prefix:
+                plot_spect_from_edf(edf_paths=files,
+                                    plt_savepath=args.output_path,
+                                    duration=args.duration,
+                                    channel_prefix=channel_prefix)
     else:
         print("Invalid command. Available commands: topo_plot_edfs, combine_topo_plots")
