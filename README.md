@@ -27,6 +27,7 @@ The functions can be found in the `process_plot_edf.py` file. Alternatively, if 
 Example Usage:
 ```
 python process_plot_edf.py process_edfs --edf-path 'edfs/PX01 - N1.edf' --channel-prefix e t --duration 180
+python process_plot_TCRE_edf.py topo_plot_edfs --edf-path 'C:\TCRE\EDF - Sleep' --channel-prefix e t
 ```
 
 **Combine Topo Maps**

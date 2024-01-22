@@ -7,6 +7,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import mne
 from matplotlib import gridspec
+import os
 
 # plt.switch_backend('agg')
 
@@ -34,6 +35,9 @@ def plot_topo_from_edf(edf_path, plt_savepath=None, duration=None, channel_prefi
 
     # Select EEG channels only
     raw.pick(['eeg'])
+    
+    events = mne.events_from_annotations(raw)
+    print(events)
 
     # Crop the data if a specific duration is provided
     if duration:
@@ -69,7 +73,8 @@ def plot_topo_from_edf(edf_path, plt_savepath=None, duration=None, channel_prefi
     fig.subplots_adjust(left=0.05)
 
     # Generate save name based on channel prefix
-    plt_savename = edf_path.split('/')[-1].split('.')[0]
+    edf_filename = os.path.splitext(os.path.basename(edf_path))[0]
+    plt_savename = edf_filename.replace('\\', '/').split('/')[-1]
     if channel_prefix == 'e':
         savename = f"{plt_savename} (EEG)"
     elif channel_prefix == 't':
@@ -80,7 +85,8 @@ def plot_topo_from_edf(edf_path, plt_savepath=None, duration=None, channel_prefi
     # Save the figure and close it
     fig.tight_layout()
     if plt_savepath: savename = f"{plt_savepath}/{savename}"
-    fig.savefig(savename, bbox_inches='tight', dpi=300)
+    else: savename = f"figures/{savename}"
+    fig.savefig(savename, bbox_inches='tight', dpi=1000)
     plt.close(fig)
 
 
